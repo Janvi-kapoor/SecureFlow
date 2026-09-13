@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7
+﻿# syntax=docker/dockerfile:1.7
 # ============================================================================
-# SecureFlow — Next.js Standalone Production Dockerfile (#478)
+# SecureFlow â€” Next.js Standalone Production Dockerfile (#478)
 #
 # Multi-stage build leveraging `output: 'standalone'` in next.config.ts.
 # Next.js output tracing produces a self-contained `.next/standalone` bundle.
@@ -8,18 +8,18 @@
 # assets, public files, and a minimal Prisma CLI layer for startup migrations.
 #
 # Multi-stage targets:
-#   1. deps       — install npm dependencies with build caching
-#   2. builder    — prisma generate & next build with DOCKER_BUILD=true
-#   3. prisma-cli — isolated Prisma CLI installation for startup migrations
-#   4. runner     — minimal non-root execution container
+#   1. deps       â€” install npm dependencies with build caching
+#   2. builder    â€” prisma generate & next build with DOCKER_BUILD=true
+#   3. prisma-cli â€” isolated Prisma CLI installation for startup migrations
+#   4. runner     â€” minimal non-root execution container
 # ============================================================================
 
 
 # ----------------------------------------------------------------------------
-# 1. deps — install node_modules (cached unless package*.json changes)
+# 1. deps â€” install node_modules (cached unless package*.json changes)
 # ----------------------------------------------------------------------------
 FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk update && apk upgrade --no-cache && apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy lockfile + package.json first for maximum layer caching.
@@ -35,10 +35,10 @@ RUN --mount=type=cache,target=/root/.npm npm ci --legacy-peer-deps
 
 
 # ----------------------------------------------------------------------------
-# 2. builder — compile the Next.js app and emit the standalone bundle
+# 2. builder â€” compile the Next.js app and emit the standalone bundle
 # ----------------------------------------------------------------------------
 FROM node:22-alpine AS builder
-RUN apk add --no-cache libc6-compat
+RUN apk update && apk upgrade --no-cache && apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Bring in installed deps from the `deps` stage.
@@ -58,7 +58,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Tell next.config.ts to enable `output: 'standalone'` for this Docker build.
 # Without this flag, `output` is omitted and no `.next/standalone` bundle is
-# produced — which is the desired behavior for local dev/build/start, but
+# produced â€” which is the desired behavior for local dev/build/start, but
 # would break the runner stage below (it copies from .next/standalone).
 ENV DOCKER_BUILD=true
 
@@ -68,7 +68,7 @@ RUN --mount=type=cache,target=/root/.npm npx prisma generate && npx next build
 
 
 # ----------------------------------------------------------------------------
-# 3. prisma-cli — isolated, independently-cacheable Prisma CLI layer
+# 3. prisma-cli â€” isolated, independently-cacheable Prisma CLI layer
 #
 # Used only at container startup to run `prisma migrate deploy`. Kept
 # separate from the app's node_modules so the runtime dependency tree
@@ -76,6 +76,7 @@ RUN --mount=type=cache,target=/root/.npm npx prisma generate && npx next build
 # is cached independently of app source changes.
 # ----------------------------------------------------------------------------
 FROM node:22-alpine AS prisma-cli
+RUN apk update && apk upgrade --no-cache
 WORKDIR /opt/prisma-cli
 RUN --mount=type=cache,target=/root/.npm npm init -y \
  && npm install --omit=dev --ignore-scripts --no-audit --no-fund \
@@ -83,9 +84,10 @@ RUN --mount=type=cache,target=/root/.npm npm init -y \
 
 
 # ----------------------------------------------------------------------------
-# 4. runner — minimal runtime image
+# 4. runner â€” minimal runtime image
 # ----------------------------------------------------------------------------
 FROM node:22-alpine AS runner
+RUN apk update && apk upgrade --no-cache
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -108,13 +110,13 @@ COPY --from=prisma-cli /opt/prisma-cli /opt/prisma-cli
 # --- Standalone Next.js server ---------------------------------------------
 # `.next/standalone` is a self-contained bundle produced by `output: 'standalone'`
 # (enabled via DOCKER_BUILD=true in the builder stage above).
-# It includes its own minimal node_modules — no need to copy the full tree.
+# It includes its own minimal node_modules â€” no need to copy the full tree.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
-# Static assets are NOT bundled in standalone — copy them explicitly.
+# Static assets are NOT bundled in standalone â€” copy them explicitly.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Public folder is served as-is by Next.js — also not in standalone.
+# Public folder is served as-is by Next.js â€” also not in standalone.
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # --- Prisma schema + migrations (for `migrate deploy` at startup) ----------
@@ -133,7 +135,7 @@ USER nextjs
 
 EXPOSE 9002
 
-# Liveness probe — Next.js always responds at `/`
+# Liveness probe â€” Next.js always responds at `/`
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:9002/ || exit 1
 
