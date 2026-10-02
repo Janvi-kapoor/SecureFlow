@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @vitest-environment jsdom
  */
 import "@testing-library/jest-dom/vitest";
@@ -120,3 +120,4 @@ describe("FindingsClient bulk triage (#732)", () => {
     expect(bar).toHaveTextContent("Bulk bar: 2");
   });
 });
+
